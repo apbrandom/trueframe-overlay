@@ -1,0 +1,52 @@
+name: Bug report
+description: Something is shown wrong, missing, or the installer failed
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting! A screenshot with the **debug** layout helps a lot:
+        load `overlays/TrueFrame_<your resolution>_debug.ovl` in RTSS (OverlayEditor -> Layouts -> Load), play for ~30 s and take a screenshot.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What you expected and what you saw instead.
+    validations:
+      required: true
+  - type: input
+    id: game
+    attributes:
+      label: Game
+      placeholder: e.g. GTA V Enhanced
+    validations:
+      required: true
+  - type: dropdown
+    id: preset
+    attributes:
+      label: Overlay preset
+      options: ["1080p", "1440p", "4K"]
+    validations:
+      required: true
+  - type: dropdown
+    id: fg
+    attributes:
+      label: Frame generation in the game
+      options: ["Off", "On (2x)", "On (3x/4x)", "Not sure"]
+    validations:
+      required: true
+  - type: input
+    id: hw
+    attributes:
+      label: GPU / CPU
+      placeholder: e.g. RTX 4070 / Ryzen 7 7800X3D
+  - type: input
+    id: rtss
+    attributes:
+      label: RTSS version
+      placeholder: e.g. 7.3.7
+  - type: textarea
+    id: shots
+    attributes:
+      label: Screenshots
+      description: Drag and drop images here (debug layout preferred).
