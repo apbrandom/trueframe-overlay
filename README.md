@@ -74,7 +74,7 @@ Advanced options (run in PowerShell from the project folder):
 - **Frame generation detection needs about 10 seconds** after you switch it on or off: it analyses the last 1024 frames.
 - **The graph and the avg/max numbers are 3 seconds behind** by design. PresentMon, which provides the frame data, reports frames in batches with a variable lag; showing them with a fixed delay is what makes the graph scroll smoothly. The big FPS number is live.
 - **Counter-Strike 2 and games with strict anti-cheat** may block the RTSS overlay. According to the RTSS documentation, CS2 also does not support RTSS's native frame rate counter, so the FPS number may stay empty there.
-- This is a beta tested on one PC (RTX 5070 Ti, Ryzen AI 9 HX 370), mostly in GTA V Enhanced. The current frame generation algorithm is validated on simulated frame data for 2x to 4x. Reports from other hardware and games are very welcome.
+- This is a beta tested on one PC (RTX 5070 Ti, Ryzen AI 9 HX 370). The current frame generation algorithm is validated on simulated frame data for 2x to 4x. Reports from other hardware and games are very welcome.
 
 ## Reporting a problem
 
