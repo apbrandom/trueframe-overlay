@@ -1,5 +1,6 @@
 # keep RTSS layouts byte-exact (CRLF, ANSI)
 *.ovl -text
+*.template -text
 *.ps1 text eol=crlf
 *.cmd text eol=crlf
 *.md  text eol=lf

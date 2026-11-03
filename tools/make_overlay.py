@@ -2,27 +2,36 @@
 # https://github.com/apbrandom/trueframe-overlay  (MIT License)
 #
 # Build every preset:   python tools/make_overlay.py --all overlays
-# Build one file:       python tools/make_overlay.py out.ovl --res=1440 [--debug] [--delay=3000] [--refresh=16]
-import os, sys
+# Build one file:       python tools/make_overlay.py out.ovl --res=1440 [--lang=en|ru] [--debug] [--delay=3000] [--refresh=16]
+#
+# One layout, two languages. Everything (geometry, colors, sensors, math) is defined once below; only the words
+# come from the TEXT table. English is written as a ready .ovl. RTSS can only draw ASCII (+ the degree sign), so
+# every Russian word is written as a [[word|size]] placeholder into a UTF-8 .template; tools/TextSprites.ps1
+# (called by install.ps1 on the player's PC) renders those words into a PNG sprite sheet and produces the final .ovl.
+import os, sys, re
 if len(sys.argv) >= 2 and sys.argv[1] == '--all':
     import subprocess
     outdir = sys.argv[2] if len(sys.argv) > 2 else 'overlays'
     os.makedirs(outdir, exist_ok=True)
+    def build(name, res, *flags):
+        subprocess.run([sys.executable, os.path.abspath(__file__), os.path.join(outdir, name), f'--res={res}', *flags], check=True)
     for res, tag in ((1080, '1080p'), (1440, '1440p'), (2160, '4k')):
-        for dbg in (False, True):
-            name = f"TrueFrame_{tag}{'_debug' if dbg else ''}.ovl"
-            subprocess.run([sys.executable, os.path.abspath(__file__), os.path.join(outdir, name), f'--res={res}'] + (['--debug'] if dbg else []), check=True)
+        build(f'TrueFrame_{tag}.ovl', res)
+        build(f'TrueFrame_{tag}_debug.ovl', res, '--debug')
+        build(f'TrueFrame_{tag}_ru.template', res, '--lang=ru')
     sys.exit(0)
 DEBUG='--debug' in sys.argv
+LANG='en'
 RES=2160
 DELAY=3000    # PM_DisplayDelay, ms: PresentMon reports frames in batches with 0.5-2.5 s lag; showing data 3 s late
               # (RTSS author's value) makes the graph scroll smoothly. Graph and frametime numbers are 3 s behind, FPS is live
 REFRESH=16    # PM_RefreshPeriod, ms: how often the graph/PresentMon sources are refreshed (60 Hz)
 for _a in list(sys.argv):
     if _a.startswith('--res='): RES=int(_a.split('=')[1])
+    if _a.startswith('--lang='): LANG=_a.split('=')[1]
     if _a.startswith('--delay='): DELAY=int(_a.split('=')[1])
     if _a.startswith('--refresh='): REFRESH=int(_a.split('=')[1])
-sys.argv=[a for a in sys.argv if a!='--debug' and not a.startswith(('--res=','--delay=','--refresh='))]
+sys.argv=[a for a in sys.argv if a!='--debug' and not a.startswith(('--res=','--lang=','--delay=','--refresh='))]
 # effective text height = zoom * |font|: ~1.3% of the screen height on every preset (v11 was ~1.48%)
 ZOOM,FONT={2160:(1,-28),1440:(1,-19),1080:(1,-14)}[RES]
 SEP_PX=4 if RES==2160 else 2   # separator thickness in pixels (zoom no longer doubles it on 4K)
@@ -31,6 +40,21 @@ C_LBL="C8C8CC"; C_VAL="FFFFFF"; C_OR="FF8A1E"
 # text size tiers (percent of the base font): headers 110, body = default 100, small/secondary 80
 S_HDR=110; S_SMALL=80
 C_GPU="5CD65C"; C_CPU="4DA6FF"; C_RAM="B67CF5"; C_SEP="3A3A40"
+
+# ---- words (the only language-dependent part). Units (MHz, W, GB, ms, FPS) stay Latin in every language ----
+TEXT={
+ 'en':dict(title='PERFORMANCE', gpu='GPU', cpu='CPU', ram='RAM', frametime='Frametime',
+           usage='Usage', temp='Temp', clock='Clock', power='Power', vram='VRAM', maxcore='Max core',
+           used='Used', load='Load', ft='avg %FrametimeAvg%  max %FrametimeMax% ms'),
+ 'ru':dict(title='МОНИТОРИНГ', gpu='Видеокарта', cpu='Процессор', ram='ОЗУ', frametime='Время кадра',
+           usage='Загрузка', temp='Температура', clock='Частота', power='Потребление', vram='Видеопамять', maxcore='Макс. ядро',
+           used='Занято', load='Загрузка', ft='ср. %FrametimeAvg%  макс. %FrametimeMax% ms'),
+}
+assert set(TEXT['en'])==set(TEXT['ru']), 'EN and RU word tables must have the same keys'
+if LANG not in TEXT: sys.exit(f'unknown --lang={LANG} (en | ru)')
+T=TEXT[LANG]
+# a run of non-ASCII characters (plus a trailing dot, e.g. "Макс.") = one word drawn as an image; the degree sign stays text
+IMG_WORD=re.compile('[^\\x00-\\x7f\\u00b0]+\\.?')
 
 def src(name, units, provider, fmt="", formula="", **extra):
     d={"Name":name,"Units":units,"Format":fmt,"Formula":formula,"Provider":provider}; d.update(extra); return d
@@ -95,6 +119,7 @@ if DEBUG:
 
 layers=[]
 def lay(name,text,x,y,w,h,origin=0,color=None,bg=None,size=None,fixed=True,vis=None):
+    if LANG!='en': text=IMG_WORD.sub(lambda m: f'[[{m.group(0)}|{size or 100}]]', text)
     d=[("Name",name),("Text",text),("PositionX",x),("PositionY",y),("ExtentX",w),("ExtentY",h),("ExtentOrigin",origin)]
     if fixed: d.append(("FixedAlignment",1))
     if size: d.append(("Size",size))
@@ -104,42 +129,44 @@ def lay(name,text,x,y,w,h,origin=0,color=None,bg=None,size=None,fixed=True,vis=N
     layers.append(d)
 def thr(s,warn,crit,base=C_VAL):
     return f"{base},,{warn},FFD60A,{warn},{crit},FF453A,{crit},({s},0)"
-def row(y,label,val,vcolor=C_VAL):
-    lay(label,label,-L,-y,-(VX-L),-1,3,C_LBL)
-    lay(label+" value",val,-VX,-y,-VW,-1,5,vcolor)
-def header(y,text,color):
+def row(y,key,val,vcolor=C_VAL):
+    name=TEXT['en'][key]      # layer names are always English, so both languages share the same layer structure
+    lay(name,T[key],-L,-y,-(VX-L),-1,3,C_LBL)
+    lay(name+" value",val,-VX,-y,-VW,-1,5,vcolor)
+def header(y,key,color):
     lay(f"sep{y}","",-L,-y,-(W-2*L),SEP_PX,0,bg="FF"+C_SEP)
-    lay(f"hdr{y}",text,-L,-y,-(W-2*L),-1,3,color,size=S_HDR)
+    lay(f"hdr{y}",T[key],-L,-y,-(W-2*L),-1,3,color,size=S_HDR)
 
 # Graph: RTSS graph flags (hex in tag): 1=filled, 8=bar, 10=own bgnd, 20=vertical, 40=mirrored, 80=autoscale
-G_TOP=17; G_H=4          # graph area: rows 17..20 (row 16 = FRAMETIME header)
+G_TOP=19; G_H=4          # graph area: rows 19..22 (row 18 = FRAMETIME header)
 G_MAX=50                 # fixed 0..50 ms scale (20 fps floor)
 G_FLAGS_LINE="0"         # plain line, newest sample on the right (flag 40 "mirrored" only flips scroll direction)
 
-H=26+(3 if DEBUG else 0)
+DEG='\u00b0C'            # degree sign = byte 0xB0, the only non-ASCII character RTSS can draw as text
+H=28+(3 if DEBUG else 0)
 lay("Background","",0,0,-W,-H,0,bg="FF1A1A1E")
-lay("Title small","PERFORMANCE",-L,0,-11,-1,3,C_VAL)
+lay("Title small",T['title'],-L,0,-11,-1,3,C_VAL)
 lay("DateTime","%Date%   %Time24%",-12,0,-13,-1,5,C_LBL,size=S_SMALL)
-header(1,"GPU",C_GPU)
-lay("GPU name","%GPU%   %VRAM%",-L,-1,-(W-2*L),-1,5,C_LBL,size=S_SMALL)   # RTSS macros: filled per PC
-row(2,"Usage","%GPU1 usage% %",C_GPU)
-row(3,"Temp","%GPU1 temperature% C",thr("GPU1 temperature",75,85))
-row(4,"Clock","%GPU1 clock% MHz")
-row(5,"Power","%GPU1 power% W")
-row(6,"VRAM","%GPU1 memory usage% / %GPU1 total memory% GB")
-header(7,"CPU",C_CPU)
-lay("CPU name","%CPU%",-L,-7,-(W-2*L),-1,5,C_LBL,size=S_SMALL)   # RTSS macros %CPU% / %GPU% / %RAM% are filled per PC
-row(8,"Usage","%CPU usage% %",thr("CPU usage",85,95))
-row(9,"Max core","%CPU usage max% %",thr("CPU usage max",90,98))
-row(10,"Temp","%CPU temperature% C",thr("CPU temperature",85,95))
-row(11,"Clock","%CPU clock% MHz")
-row(12,"Power","%CPU power% W")
-header(13,"RAM",C_RAM)
-lay("RAM size","%RAM%",-L,-13,-(W-2*L),-1,5,C_LBL,size=S_SMALL)
-row(14,"Used","%RAM usage% / %Total RAM% GB")
-row(15,"Load","%RAM usage percent% %",thr("RAM usage percent",85,95))
-header(16,"Frametime",C_OR)
-lay("FT values","avg %FrametimeAvg%  max %FrametimeMax% ms",-L,-16,-(W-2*L),-1,5,C_VAL,size=S_SMALL,vis="IsPresentMonDataAvailable")
+header(1,'gpu',C_GPU)
+lay("GPU name","%GPU%   %VRAM%",-L,-2,-(W-2*L),-1,3,C_LBL,size=S_SMALL)   # RTSS macros %GPU% / %CPU% / %RAM% are filled per PC; own row, they can be long
+row(3,'usage',"%GPU1 usage% %",C_GPU)
+row(4,'temp',f"%GPU1 temperature% {DEG}",thr("GPU1 temperature",75,85))
+row(5,'clock',"%GPU1 clock% MHz")
+row(6,'power',"%GPU1 power% W")
+row(7,'vram',"%GPU1 memory usage% / %GPU1 total memory% GB")
+header(8,'cpu',C_CPU)
+lay("CPU name","%CPU%",-L,-9,-(W-2*L),-1,3,C_LBL,size=S_SMALL)
+row(10,'usage',"%CPU usage% %",thr("CPU usage",85,95))
+row(11,'maxcore',"%CPU usage max% %",thr("CPU usage max",90,98))
+row(12,'temp',f"%CPU temperature% {DEG}",thr("CPU temperature",85,95))
+row(13,'clock',"%CPU clock% MHz")
+row(14,'power',"%CPU power% W")
+header(15,'ram',C_RAM)
+lay("RAM size","%RAM%",-L,-15,-(W-2*L),-1,5,C_LBL,size=S_SMALL)
+row(16,'used',"%RAM usage% / %Total RAM% GB")
+row(17,'load',"%RAM usage percent% %",thr("RAM usage percent",85,95))
+header(18,'frametime',C_OR)
+lay("FT values",T['ft'],-L,-18,-(W-2*L),-1,5,C_VAL,size=S_SMALL,vis="IsPresentMonDataAvailable")
 lay("Graph bg","",-L,-G_TOP,-(W-2*L),-G_H,0,bg="FF0E0E12")
 # one graph for every case: time between frames that actually reached the screen (correct with and without frame generation)
 lay("Graph line",f"<G=msBetweenDisplayChange,0,0,1,0,{G_MAX},{G_FLAGS_LINE}>",-L,-G_TOP,-(W-2*L),-G_H,0,"FF"+C_OR)
@@ -165,5 +192,6 @@ for i,s in enumerate(sources):
 for i,d in enumerate(layers):
     out.append(f"[Layer{i}]"); out += [f"{k}={v}" for k,v in d]
 p=sys.argv[1]
-open(p,"wb").write(("\r\n".join(out)+"\r\n").encode("ascii"))
+# en: finished .ovl (ASCII + 0xB0). ru: UTF-8 .template with [[word|size]] placeholders, finished on the player's PC by TextSprites.ps1
+open(p,"wb").write(("\r\n".join(out)+"\r\n").encode("latin-1" if LANG=='en' else "utf-8"))
 print(len(layers),"layers,",len(sources),"sources ->",p)

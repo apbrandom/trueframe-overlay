@@ -6,6 +6,7 @@
 .EXAMPLE
   .\install.ps1                      # interactive: detects the resolution, asks you to confirm
   .\install.ps1 -Resolution 1440     # skip the question (1080 | 1440 | 2160)
+  .\install.ps1 -Language ru         # skip the language question (en | ru); Russian words are drawn as images
   .\install.ps1 -Hotkey keep         # do not touch the OSD toggle hotkey
   .\install.ps1 -DryRun              # show what would be changed, change nothing
   .\install.ps1 -Uninstall           # restore the RTSS settings saved before the install
@@ -13,6 +14,7 @@
 [CmdletBinding()]
 param(
     [ValidateSet('', '1080', '1440', '2160')][string]$Resolution = '',
+    [ValidateSet('auto', 'en', 'ru')][string]$Language = 'auto',
     [string]$Hotkey = 'Ctrl+Shift+F10',     # 'keep' = leave current, 'none' = clear
     [string]$RtssPath = '',
     [switch]$NoRestart,
@@ -38,8 +40,10 @@ if (-not $DryRun -and -not (Test-Admin)) {
         $v = $PSBoundParameters[$k]
         if ($v -is [switch]) { if ($v.IsPresent) { $a += "-$k" } } else { $a += "-$k"; $a += ('"{0}"' -f $v) }
     }
-    Start-Process powershell.exe -Verb RunAs -ArgumentList $a -Wait
-    exit
+    # No -Wait: this launcher window closes as soon as UAC is accepted; the elevated window does the work.
+    try { Start-Process powershell.exe -Verb RunAs -ArgumentList $a }
+    catch { Write-Host 'Elevation was cancelled. Nothing was changed.' -ForegroundColor Red; exit 1 }
+    exit 0
 }
 
 # ---------- helpers ----------
@@ -54,6 +58,7 @@ function Find-Rtss {
 }
 
 function Get-IniValue([string]$Path, [string]$Section, [string]$Key) {
+    if (-not (Test-Path $Path)) { return $null }      # fresh RTSS: plugin settings files do not exist until first use
     $in = $false
     foreach ($l in ([IO.File]::ReadAllText($Path, $Latin1) -split "\r?\n")) {
         if ($l -match '^\s*\[(.+?)\]\s*$') { $in = ($Matches[1] -ieq $Section); continue }
@@ -64,8 +69,8 @@ function Get-IniValue([string]$Path, [string]$Section, [string]$Key) {
 
 function Set-IniValue([string]$Path, [string]$Section, [string]$Key, [string]$Value) {
     Write-Host ("   [{0}] {1}={2}   ({3})" -f $Section, $Key, $Value, (Split-Path $Path -Leaf))
-    $text = [IO.File]::ReadAllText($Path, $Latin1)
-    $nl = if ($text.Contains("`r`n")) { "`r`n" } else { "`n" }
+    $text = if (Test-Path $Path) { [IO.File]::ReadAllText($Path, $Latin1) } else { '' }     # a missing file is created
+    $nl = if ($text.Contains("`n") -and -not $text.Contains("`r`n")) { "`n" } else { "`r`n" }
     $lines = New-Object 'System.Collections.Generic.List[string]'
     $lines.AddRange([string[]]($text -split "\r?\n"))
     $in = $false; $done = $false; $last = -1
@@ -88,14 +93,28 @@ function Set-IniValue([string]$Path, [string]$Section, [string]$Key, [string]$Va
             $lines.InsertRange($at, [string[]]@("[$Section]", "$Key=$Value"))
         }
     }
-    if (-not $DryRun) { [IO.File]::WriteAllText($Path, ($lines -join $nl), $Latin1) }
+    if (-not $DryRun) {
+        $dir = Split-Path $Path
+        if ($dir -and -not (Test-Path $dir)) { New-Item -ItemType Directory -Path $dir | Out-Null }
+        [IO.File]::WriteAllText($Path, ($lines -join $nl), $Latin1)
+    }
 }
 
 function Backup-File([string]$Path) {
     $b = "$Path.overlay-backup"
-    if ((Test-Path $Path) -and -not (Test-Path $b)) {
+    if (Test-Path $b) { return }
+    if (Test-Path $Path) {
         Write-Host ("   backup: {0}" -f (Split-Path $b -Leaf))
         if (-not $DryRun) { Copy-Item $Path $b }
+    }
+    else {
+        # the file does not exist yet (fresh RTSS): an empty backup marks "it did not exist", so Uninstall can remove it again
+        Write-Host ("   {0} does not exist yet, it will be created" -f (Split-Path $Path -Leaf))
+        if (-not $DryRun) {
+            $dir = Split-Path $Path
+            if ($dir -and -not (Test-Path $dir)) { New-Item -ItemType Directory -Path $dir | Out-Null }
+            [IO.File]::WriteAllBytes($b, [byte[]]@())
+        }
     }
 }
 
@@ -127,6 +146,11 @@ function Get-DesktopSize {
     } catch { return $null }
 }
 
+function Test-RussianUi {
+    # only used to pick the default answer of the language question
+    try { return ((Get-UICulture).TwoLetterISOLanguageName -eq 'ru') } catch { return $false }
+}
+
 function Stop-Rtss {
     if (Get-Process MSIAfterburner -ErrorAction SilentlyContinue) {
         throw 'MSI Afterburner is running and hosts RTSS. Close Afterburner first, then run this script again.'
@@ -146,7 +170,7 @@ function Start-Rtss([string]$Dir) {
 # The elevated window is a separate console: keep it open long enough to read the result.
 # Success: closes by itself after 15 s (any key closes it earlier). Error: waits for Enter.
 function Wait-Close([bool]$Failed) {
-    if ($NoPause -or -not $Elevated) { return }
+    if ($NoPause -or $DryRun) { return }
     Write-Host ''
     if ($Failed) { Read-Host 'Press Enter to close'; return }
     Write-Host 'This window closes in 15 seconds (press any key to close it now)...'
@@ -159,7 +183,9 @@ function Wait-Close([bool]$Failed) {
 # ---------- main ----------
 $rtss = Find-Rtss
 if (-not $rtss -or -not (Test-Path (Join-Path $rtss 'Plugins\Client\OverlayEditor.dll'))) {
-    Write-Host 'RivaTuner Statistics Server (RTSS) was not found. Install it first: https://www.guru3d.com/download/rtss-rivatuner-statistics-server-download/ (or pass -RtssPath).' -ForegroundColor Red
+    Write-Host 'RivaTuner Statistics Server (RTSS) was not found.' -ForegroundColor Red
+    Write-Host 'Install RTSS (the "Statistics Server", NOT the old 2008 "RivaTuner v2.24"): https://www.guru3d.com/download/rtss-rivatuner-statistics-server-download/' -ForegroundColor Red
+    Write-Host 'RTSS also comes with MSI Afterburner. If RTSS is installed in a custom folder, pass -RtssPath.' -ForegroundColor Red
     Wait-Close $true
     exit 1
 }
@@ -170,7 +196,11 @@ $cfg = [ordered]@{
     Config   = Join-Path $rtss 'Profiles\Config'
 }
 $ovlDir = Join-Path $client 'Overlays'
-$presets = [ordered]@{ '1080' = 'TrueFrame_1080p.ovl'; '1440' = 'TrueFrame_1440p.ovl'; '2160' = 'TrueFrame_4k.ovl' }
+$presets = [ordered]@{ '1080' = 'TrueFrame_1080p'; '1440' = 'TrueFrame_1440p'; '2160' = 'TrueFrame_4k' }
+# English overlays are ready .ovl files. Russian ones are templates: the words are drawn into a PNG sprite sheet
+# on this PC (tools\TextSprites.ps1), because RTSS itself cannot draw Cyrillic text.
+$enFiles = @(foreach ($b in $presets.Values) { "$b.ovl" })
+$ruTemplates = @(foreach ($b in $presets.Values) { "${b}_ru.template" })
 Write-Host "RTSS found: $rtss"
 
 try {
@@ -178,9 +208,14 @@ try {
         Stop-Rtss
         foreach ($p in $cfg.Values) {
             $b = "$p.overlay-backup"
-            if (Test-Path $b) { Write-Host ("   restore: {0}" -f (Split-Path $p -Leaf)); if (-not $DryRun) { Copy-Item $b $p -Force } }
+            if (-not (Test-Path $b)) { continue }
+            if ((Get-Item $b).Length -eq 0) {
+                # the file was created by the installer. Plugin settings files are removed; the global RTSS Config is kept, RTSS rewrites it itself
+                if ((Split-Path $p -Leaf) -ne 'Config') { Write-Host ("   remove: {0} (created by the installer)" -f (Split-Path $p -Leaf)); if (-not $DryRun) { Remove-Item $p -Force -ErrorAction SilentlyContinue } }
+            }
+            else { Write-Host ("   restore: {0}" -f (Split-Path $p -Leaf)); if (-not $DryRun) { Copy-Item $b $p -Force } }
         }
-        $mine = @(Get-ChildItem -Path $ovlDir -Filter 'TrueFrame*.ovl' -ErrorAction SilentlyContinue)
+        $mine = @(Get-ChildItem -Path $ovlDir -Filter 'TrueFrame*' -ErrorAction SilentlyContinue | Where-Object { $_.Extension -in '.ovl', '.png' })
         if ($mine.Count) { Write-Host ("   remove: {0} overlay file(s)" -f $mine.Count); if (-not $DryRun) { $mine | Remove-Item -Force } }
         Start-Rtss $rtss
         Write-Host 'Done. RTSS settings are restored.' -ForegroundColor Green
@@ -202,15 +237,40 @@ try {
             $Resolution = @{ '1' = '1080'; '2' = '1440'; '3' = '2160' }[$ans.Trim()]
             if (-not $Resolution) { throw 'Invalid choice.' }
         }
-        $fileName = $presets[$Resolution]
-        $label = @{ '1080' = '1080p'; '1440' = '1440p'; '2160' = '4K' }[$Resolution]
+
+        # 2) language
+        if ($Language -eq 'auto') {
+            $def = if (Test-RussianUi) { '2' } else { '1' }
+            Write-Host ''
+            Write-Host 'Overlay language:'
+            Write-Host '  [1] English'
+            Write-Host '  [2] Russian'
+            $ans = Read-Host "Choose 1-2 [Enter = $def]"
+            if (-not $ans) { $ans = $def }
+            $pick = @{ '1' = 'en'; '2' = 'ru' }[$ans.Trim()]
+            if (-not $pick) { throw 'Invalid choice.' }
+            $Language = $pick
+        }
+        $Language = $Language.ToLower()
+
         $srcDir = $null
-        foreach ($d in 'overlays', 'dist') { $c = Join-Path $PSScriptRoot $d; if (Test-Path (Join-Path $c $fileName)) { $srcDir = $c; break } }
-        if (-not $srcDir) { throw "Overlay file $fileName not found next to the script." }
-        foreach ($f in $presets.Values) { if (-not (Test-Path (Join-Path $srcDir $f))) { throw "Overlay file $f is missing in $srcDir." } }
+        foreach ($d in 'overlays', 'dist') { $c = Join-Path $PSScriptRoot $d; if (Test-Path (Join-Path $c $enFiles[0])) { $srcDir = $c; break } }
+        if (-not $srcDir) { throw "Overlay files not found next to the script (expected an 'overlays' folder)." }
+        foreach ($f in $enFiles) { if (-not (Test-Path (Join-Path $srcDir $f))) { throw "Overlay file $f is missing in $srcDir." } }
+        $sprites = $null
+        foreach ($c in (Join-Path $PSScriptRoot 'tools\TextSprites.ps1'), (Join-Path $PSScriptRoot 'TextSprites.ps1')) { if (Test-Path $c) { $sprites = $c; break } }
+        $ruReady = [bool]$sprites
+        foreach ($f in $ruTemplates) { if (-not (Test-Path (Join-Path $srcDir $f))) { $ruReady = $false } }
+        if ($Language -eq 'ru' -and -not $ruReady) {
+            Write-Host 'Russian overlay files (overlays\*_ru.template, tools\TextSprites.ps1) were not found, installing the English overlay.' -ForegroundColor Yellow
+            $Language = 'en'
+        }
+
+        $fileName = $presets[$Resolution] + $(if ($Language -eq 'ru') { '_ru' } else { '' }) + '.ovl'
+        $label = @{ '1080' = '1080p'; '1440' = '1440p'; '2160' = '4K' }[$Resolution] + ', ' + @{ 'en' = 'English'; 'ru' = 'Russian' }[$Language]
         $target = Join-Path $ovlDir $fileName
 
-        # 2) hotkey
+        # 3) hotkey
         $hk = $null
         if ($Hotkey -ne 'keep') {
             $hk = if ($Hotkey -eq 'none') { '00000000' } else { ConvertTo-HotkeyValue $Hotkey }
@@ -227,12 +287,33 @@ try {
         Write-Host ' - saving backups of RTSS settings (first install only)'
         foreach ($p in $cfg.Values) { Backup-File $p }
 
-        Write-Host ' - copying overlays (all three presets, so you can switch the resolution later)'
+        Write-Host ' - copying overlays (all resolutions and languages, so you can switch later)'
         if (-not $DryRun) {
             if (-not (Test-Path $ovlDir)) { New-Item -ItemType Directory -Path $ovlDir | Out-Null }
-            foreach ($f in $presets.Values) { Copy-Item (Join-Path $srcDir $f) (Join-Path $ovlDir $f) -Force }
+            foreach ($f in $enFiles) { Copy-Item (Join-Path $srcDir $f) (Join-Path $ovlDir $f) -Force }
             $legacy = Join-Path $ovlDir 'TrueFrame.ovl'      # file name used by the first beta installer
             if (Test-Path $legacy) { Remove-Item $legacy -Force }
+        }
+        if ($ruReady) {
+            Write-Host ' - drawing the Russian words (RTSS cannot draw Cyrillic text itself, so they become images)'
+            if (-not $DryRun) {
+                try {
+                    foreach ($f in $ruTemplates) {
+                        & $sprites -Template (Join-Path $srcDir $f) -OutOvl (Join-Path $ovlDir ($f -replace '\.template$', '.ovl'))
+                    }
+                }
+                catch {
+                    if ($Language -ne 'ru') {
+                        Write-Host ("   Russian overlay was skipped: {0}" -f $_.Exception.Message) -ForegroundColor Yellow
+                    }
+                    else {
+                        Write-Host ("   Could not draw the Russian words ({0}). Installing the English overlay instead." -f $_.Exception.Message) -ForegroundColor Yellow
+                        $Language = 'en'
+                        $target = Join-Path $ovlDir ($presets[$Resolution] + '.ovl')
+                    }
+                    foreach ($f in $ruTemplates) { foreach ($e in '.ovl', '.png') { Remove-Item (Join-Path $ovlDir ($f -replace '\.template$', $e)) -Force -ErrorAction SilentlyContinue } }
+                }
+            }
         }
         Write-Host ' - updating RTSS settings'
         Set-IniValue $cfg.Layout 'Settings' 'Layout' $target
@@ -244,7 +325,7 @@ try {
         Write-Host ''
         Write-Host 'Done. Start a game: the overlay appears automatically.' -ForegroundColor Green
         if ($hk -and $hk -ne '00000000') { Write-Host "Show/hide hotkey: $Hotkey" }
-        Write-Host 'To change the resolution later: run install.cmd again, or in RTSS use OverlayEditor -> Layouts -> Load.'
+        Write-Host 'To change the resolution or language later: run install.cmd again, or in RTSS use OverlayEditor -> Layouts -> Load.'
     }
 }
 catch {

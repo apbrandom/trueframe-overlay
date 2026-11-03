@@ -65,6 +65,22 @@ RTSS lays out text in a grid whose cell size follows the font height. Each prese
 
 The 4K preset uses zoom 1 with a larger font instead of zoom 2: the text looks the same, but the graph gets twice as many pixels, so it scrolls half as fast and shows a longer history.
 
+## Languages
+
+One layout, two languages. [`tools/make_overlay.py`](../tools/make_overlay.py) defines the geometry, colors, sensors and math once; only the words come from a small table with English and Russian entries (the script refuses to build if the two tables have different keys). A change to the design or the math therefore reaches both languages automatically. Units (MHz, W, GB, ms, FPS) are the same in both.
+
+**Why Russian words are images.** RTSS draws overlay text with its own raster font, which only contains the ASCII range (0x20-0x7E) and the degree sign. This is independent of the Windows language, the "Language for non-Unicode programs" setting and the UTF-8 option: Cyrillic is drawn as squares in every configuration. Changing that would mean replacing RTSS's global font or patching its files, which would affect every other overlay and is not something a layout should do.
+
+**What is done instead.** For Russian, the generator writes a UTF-8 `*_ru.template` where each Russian word is a placeholder `[[word|size]]` (`size` is the layer's text size in percent). On the player's PC, [`tools/TextSprites.ps1`](../tools/TextSprites.ps1) (called by `install.ps1`):
+
+1. renders every distinct word once with Windows GDI, using the overlay's own font (Segoe UI Semibold), pixel height and anti-aliasing, so the words match RTSS's text;
+2. packs the words into a white PNG sprite sheet (alpha = glyph coverage) and writes it next to the `.ovl`;
+3. replaces each placeholder with an RTSS image tag `<I=shownW,shownH,spriteX,spriteY,spriteW,spriteH>` and sets `EmbeddedImage=` in the layout. The shown size is the sprite size multiplied by the layer's text size, the same scaling RTSS applies to its own text tiers.
+
+RTSS tints an image with the layer's text color, which is why the sprites are white: label, header and warning colors keep working. The overlay fonts are pixel-based, so the sheet is rendered per preset (1080p, 1440p, 4K).
+
+The images are static, but they are drawn once at install time, not per frame; the cost during a game is the same as for normal overlay text.
+
 ## Hotkey
 
 RTSS's HotkeyHandler stores the OSD toggle key in `Plugins\Client\HotkeyHandler.cfg` as one hex number: the low word is the Windows virtual key code, the high word holds modifiers (Shift = 1, Ctrl = 2, Alt = 4). Ctrl+Shift+F10 is `00030079`. The default avoids single F-keys (games and Steam use them) and plain Ctrl combinations (Ctrl is a game key in many titles; the tilde opens the console in Source games).

@@ -1,0 +1,787 @@
+[Master]
+Implementation=2
+FontFace=Segoe UI Semibold
+FontHeight=-28
+FontWeight=400
+ZoomRatio=1
+[Settings]
+Name=TrueFrame Overlay
+EnvVars=PM_RefreshPeriod=16;PM_DisplayDelay=3000
+RefreshPeriod=1000
+LockUserSettings=1
+EmbeddedImage=
+PingAddr=
+[General]
+Sources=38
+Tables=0
+Layers=48
+[Source0]
+Name=CPU usage
+Units=%
+Format=
+Formula=
+Provider=HAL
+ID=CPU usage
+[Source1]
+Name=CPU usage max
+Units=%
+Format=
+Formula=
+Provider=HAL
+ID=CPU usage max
+[Source2]
+Name=CPU temperature
+Units=C
+Format=
+Formula=
+Provider=HAL
+ID=CPU temperature
+[Source3]
+Name=CPU temperature
+Units=C
+Format=
+Formula=
+Provider=HwInfo
+SensorInst=0
+ReadingType=1
+ReadingName=CPU Package,CPU (Tctl/Tdie)
+[Source4]
+Name=CPU temperature
+Units=C
+Format=
+Formula=
+Provider=AIDA
+ID=TCPUPKG,TCPU
+[Source5]
+Name=CPU temperature
+Units=C
+Format=
+Formula=
+Provider=MSI Afterburner
+SrcId=00000080
+Gpu=FFFFFFFF
+SrcName=
+[Source6]
+Name=CPU temperature
+Units=C
+Format=
+Formula=
+Provider=LHM
+ID=/amdcpu/0/temperature/0,/amdcpu/0/temperature/1,/amdcpu/0/temperature/2,/amdcpu/0/temperature/3,/amdcpu/0/temperature/4,/amdcpu/0/temperature/5
+[Source7]
+Name=CPU clock
+Units=MHz
+Format=
+Formula=
+Provider=HAL
+ID=CPU clock
+[Source8]
+Name=CPU clock
+Units=MHz
+Format=
+Formula=
+Provider=LHM
+ID=/amdcpu/0/clock/1,/amdcpu/0/clock/2,/amdcpu/0/clock/3,/amdcpu/0/clock/0
+[Source9]
+Name=CPU power
+Units=W
+Format=%.1f
+Formula=
+Provider=HAL
+ID=CPU power
+[Source10]
+Name=CPU power
+Units=W
+Format=%.1f
+Formula=
+Provider=HwInfo
+SensorInst=0
+ReadingType=5
+ReadingName=CPU Package Power,CPU Package Power (SMU)
+[Source11]
+Name=CPU power
+Units=W
+Format=%.1f
+Formula=
+Provider=AIDA
+ID=PCPUPKG
+[Source12]
+Name=CPU power
+Units=W
+Format=%.1f
+Formula=
+Provider=MSI Afterburner
+SrcId=00000100
+Gpu=FFFFFFFF
+SrcName=
+[Source13]
+Name=CPU power
+Units=W
+Format=%.1f
+Formula=
+Provider=LHM
+ID=/amdcpu/0/power/0,/amdcpu/0/power/1,/amdcpu/0/power/2,/amdcpu/0/power/3
+[Source14]
+Name=GPU1 usage
+Units=%
+Format=
+Formula=
+Provider=HAL
+ID=GPU1 usage
+[Source15]
+Name=GPU1 temperature
+Units=C
+Format=
+Formula=
+Provider=HAL
+ID=GPU1 temperature
+[Source16]
+Name=GPU1 clock
+Units=MHz
+Format=
+Formula=
+Provider=HAL
+ID=GPU1 clock
+[Source17]
+Name=GPU1 power
+Units=W
+Format=%.1f
+Formula=
+Provider=HAL
+ID=GPU1 power
+[Source18]
+Name=GPU1 memory usage
+Units=GB
+Format=%.1f
+Formula=x/1024
+Provider=HAL
+ID=GPU1 memory usage
+[Source19]
+Name=GPU1 total memory
+Units=GB
+Format=%.1f
+Formula=x/1024
+Provider=HAL
+ID=GPU1 total memory
+[Source20]
+Name=RAM usage
+Units=GB
+Format=%.1f
+Formula=x/1024
+Provider=HAL
+ID=RAM usage
+[Source21]
+Name=Total RAM
+Units=GB
+Format=%.1f
+Formula=x/1024
+Provider=HAL
+ID=Total RAM
+[Source22]
+Name=RAM usage percent
+Units=%
+Format=
+Formula=
+Provider=HAL
+ID=RAM usage percent
+[Source23]
+Name=msBetweenPresents
+Units=ms
+Format=
+Formula=
+Provider=PresentMon
+ID=msBetweenPresents
+[Source24]
+Name=msBetweenDisplayChange
+Units=ms
+Format=
+Formula=
+Provider=PresentMon
+ID=msBetweenDisplayChange
+[Source25]
+Name=PMp90
+Units=ms
+Format=%.1f
+Formula=percentile(msBetweenPresents,90)
+Provider=HAL
+ID=Stub
+[Source26]
+Name=PMp71
+Units=ms
+Format=%.1f
+Formula=percentile(msBetweenPresents,71)
+Provider=HAL
+ID=Stub
+[Source27]
+Name=PMp60
+Units=ms
+Format=%.1f
+Formula=percentile(msBetweenPresents,60)
+Provider=HAL
+ID=Stub
+[Source28]
+Name=PMp40
+Units=ms
+Format=%.1f
+Formula=percentile(msBetweenPresents,40)
+Provider=HAL
+ID=Stub
+[Source29]
+Name=FGMult
+Units=x
+Format=%.0f
+Formula=1+(PMp40<0.3*PMp90)+(PMp60<0.3*PMp90)+(PMp71<0.3*PMp90)
+Provider=HAL
+ID=Stub
+[Source30]
+Name=FGActive
+Units=
+Format=
+Formula=if(validate(FGMult),FGMult>1,0)
+Provider=HAL
+ID=Stub
+[Source31]
+Name=NotFG
+Units=
+Format=
+Formula=1-FGActive
+Provider=HAL
+ID=Stub
+[Source32]
+Name=RealFPS
+Units=FPS
+Format=%.0f
+Formula=FrameratePresented/FGMult
+Provider=HAL
+ID=Stub
+[Source33]
+Name=IsPresentMonDataAvailable
+Units=
+Format=
+Formula=validate(x)
+Provider=PresentMon
+ID=msBetweenPresents
+[Source34]
+Name=FrameratePresented1Dot0PLow
+Units=FPS
+Format=%.0f
+Formula=1000/percentile(msBetweenPresents,99)
+Provider=HAL
+ID=Stub
+[Source35]
+Name=FrameratePresented
+Units=FPS
+Format=%.0f
+Formula=
+Provider=PresentMon
+ID=FrameratePresented
+[Source36]
+Name=FrametimeAvg
+Units=ms
+Format=%.1f
+Formula=swavg(msBetweenDisplayChange,60)
+Provider=HAL
+ID=Stub
+[Source37]
+Name=FrametimeMax
+Units=ms
+Format=%.0f
+Formula=swmax(msBetweenDisplayChange,300)
+Provider=HAL
+ID=Stub
+[Layer0]
+Name=Background
+Text=
+PositionX=0
+PositionY=0
+ExtentX=-26
+ExtentY=-28
+ExtentOrigin=0
+FixedAlignment=1
+BgndColor=FF1A1A1E
+[Layer1]
+Name=Title small
+Text=[[МОНИТОРИНГ|100]]
+PositionX=-1
+PositionY=0
+ExtentX=-11
+ExtentY=-1
+ExtentOrigin=3
+FixedAlignment=1
+TextColor=FFFFFF
+[Layer2]
+Name=DateTime
+Text=%Date%   %Time24%
+PositionX=-12
+PositionY=0
+ExtentX=-13
+ExtentY=-1
+ExtentOrigin=5
+FixedAlignment=1
+Size=80
+TextColor=C8C8CC
+[Layer3]
+Name=sep1
+Text=
+PositionX=-1
+PositionY=-1
+ExtentX=-24
+ExtentY=4
+ExtentOrigin=0
+FixedAlignment=1
+BgndColor=FF3A3A40
+[Layer4]
+Name=hdr1
+Text=[[Видеокарта|110]]
+PositionX=-1
+PositionY=-1
+ExtentX=-24
+ExtentY=-1
+ExtentOrigin=3
+FixedAlignment=1
+Size=110
+TextColor=5CD65C
+[Layer5]
+Name=GPU name
+Text=%GPU%   %VRAM%
+PositionX=-1
+PositionY=-2
+ExtentX=-24
+ExtentY=-1
+ExtentOrigin=3
+FixedAlignment=1
+Size=80
+TextColor=C8C8CC
+[Layer6]
+Name=Usage
+Text=[[Загрузка|100]]
+PositionX=-1
+PositionY=-3
+ExtentX=-12
+ExtentY=-1
+ExtentOrigin=3
+FixedAlignment=1
+TextColor=C8C8CC
+[Layer7]
+Name=Usage value
+Text=%GPU1 usage% %
+PositionX=-13
+PositionY=-3
+ExtentX=-12
+ExtentY=-1
+ExtentOrigin=5
+FixedAlignment=1
+TextColor=5CD65C
+[Layer8]
+Name=Temp
+Text=[[Температура|100]]
+PositionX=-1
+PositionY=-4
+ExtentX=-12
+ExtentY=-1
+ExtentOrigin=3
+FixedAlignment=1
+TextColor=C8C8CC
+[Layer9]
+Name=Temp value
+Text=%GPU1 temperature% °C
+PositionX=-13
+PositionY=-4
+ExtentX=-12
+ExtentY=-1
+ExtentOrigin=5
+FixedAlignment=1
+TextColor=FFFFFF,,75,FFD60A,75,85,FF453A,85,(GPU1 temperature,0)
+[Layer10]
+Name=Clock
+Text=[[Частота|100]]
+PositionX=-1
+PositionY=-5
+ExtentX=-12
+ExtentY=-1
+ExtentOrigin=3
+FixedAlignment=1
+TextColor=C8C8CC
+[Layer11]
+Name=Clock value
+Text=%GPU1 clock% MHz
+PositionX=-13
+PositionY=-5
+ExtentX=-12
+ExtentY=-1
+ExtentOrigin=5
+FixedAlignment=1
+TextColor=FFFFFF
+[Layer12]
+Name=Power
+Text=[[Потребление|100]]
+PositionX=-1
+PositionY=-6
+ExtentX=-12
+ExtentY=-1
+ExtentOrigin=3
+FixedAlignment=1
+TextColor=C8C8CC
+[Layer13]
+Name=Power value
+Text=%GPU1 power% W
+PositionX=-13
+PositionY=-6
+ExtentX=-12
+ExtentY=-1
+ExtentOrigin=5
+FixedAlignment=1
+TextColor=FFFFFF
+[Layer14]
+Name=VRAM
+Text=[[Видеопамять|100]]
+PositionX=-1
+PositionY=-7
+ExtentX=-12
+ExtentY=-1
+ExtentOrigin=3
+FixedAlignment=1
+TextColor=C8C8CC
+[Layer15]
+Name=VRAM value
+Text=%GPU1 memory usage% / %GPU1 total memory% GB
+PositionX=-13
+PositionY=-7
+ExtentX=-12
+ExtentY=-1
+ExtentOrigin=5
+FixedAlignment=1
+TextColor=FFFFFF
+[Layer16]
+Name=sep8
+Text=
+PositionX=-1
+PositionY=-8
+ExtentX=-24
+ExtentY=4
+ExtentOrigin=0
+FixedAlignment=1
+BgndColor=FF3A3A40
+[Layer17]
+Name=hdr8
+Text=[[Процессор|110]]
+PositionX=-1
+PositionY=-8
+ExtentX=-24
+ExtentY=-1
+ExtentOrigin=3
+FixedAlignment=1
+Size=110
+TextColor=4DA6FF
+[Layer18]
+Name=CPU name
+Text=%CPU%
+PositionX=-1
+PositionY=-9
+ExtentX=-24
+ExtentY=-1
+ExtentOrigin=3
+FixedAlignment=1
+Size=80
+TextColor=C8C8CC
+[Layer19]
+Name=Usage
+Text=[[Загрузка|100]]
+PositionX=-1
+PositionY=-10
+ExtentX=-12
+ExtentY=-1
+ExtentOrigin=3
+FixedAlignment=1
+TextColor=C8C8CC
+[Layer20]
+Name=Usage value
+Text=%CPU usage% %
+PositionX=-13
+PositionY=-10
+ExtentX=-12
+ExtentY=-1
+ExtentOrigin=5
+FixedAlignment=1
+TextColor=FFFFFF,,85,FFD60A,85,95,FF453A,95,(CPU usage,0)
+[Layer21]
+Name=Max core
+Text=[[Макс.|100]] [[ядро|100]]
+PositionX=-1
+PositionY=-11
+ExtentX=-12
+ExtentY=-1
+ExtentOrigin=3
+FixedAlignment=1
+TextColor=C8C8CC
+[Layer22]
+Name=Max core value
+Text=%CPU usage max% %
+PositionX=-13
+PositionY=-11
+ExtentX=-12
+ExtentY=-1
+ExtentOrigin=5
+FixedAlignment=1
+TextColor=FFFFFF,,90,FFD60A,90,98,FF453A,98,(CPU usage max,0)
+[Layer23]
+Name=Temp
+Text=[[Температура|100]]
+PositionX=-1
+PositionY=-12
+ExtentX=-12
+ExtentY=-1
+ExtentOrigin=3
+FixedAlignment=1
+TextColor=C8C8CC
+[Layer24]
+Name=Temp value
+Text=%CPU temperature% °C
+PositionX=-13
+PositionY=-12
+ExtentX=-12
+ExtentY=-1
+ExtentOrigin=5
+FixedAlignment=1
+TextColor=FFFFFF,,85,FFD60A,85,95,FF453A,95,(CPU temperature,0)
+[Layer25]
+Name=Clock
+Text=[[Частота|100]]
+PositionX=-1
+PositionY=-13
+ExtentX=-12
+ExtentY=-1
+ExtentOrigin=3
+FixedAlignment=1
+TextColor=C8C8CC
+[Layer26]
+Name=Clock value
+Text=%CPU clock% MHz
+PositionX=-13
+PositionY=-13
+ExtentX=-12
+ExtentY=-1
+ExtentOrigin=5
+FixedAlignment=1
+TextColor=FFFFFF
+[Layer27]
+Name=Power
+Text=[[Потребление|100]]
+PositionX=-1
+PositionY=-14
+ExtentX=-12
+ExtentY=-1
+ExtentOrigin=3
+FixedAlignment=1
+TextColor=C8C8CC
+[Layer28]
+Name=Power value
+Text=%CPU power% W
+PositionX=-13
+PositionY=-14
+ExtentX=-12
+ExtentY=-1
+ExtentOrigin=5
+FixedAlignment=1
+TextColor=FFFFFF
+[Layer29]
+Name=sep15
+Text=
+PositionX=-1
+PositionY=-15
+ExtentX=-24
+ExtentY=4
+ExtentOrigin=0
+FixedAlignment=1
+BgndColor=FF3A3A40
+[Layer30]
+Name=hdr15
+Text=[[ОЗУ|110]]
+PositionX=-1
+PositionY=-15
+ExtentX=-24
+ExtentY=-1
+ExtentOrigin=3
+FixedAlignment=1
+Size=110
+TextColor=B67CF5
+[Layer31]
+Name=RAM size
+Text=%RAM%
+PositionX=-1
+PositionY=-15
+ExtentX=-24
+ExtentY=-1
+ExtentOrigin=5
+FixedAlignment=1
+Size=80
+TextColor=C8C8CC
+[Layer32]
+Name=Used
+Text=[[Занято|100]]
+PositionX=-1
+PositionY=-16
+ExtentX=-12
+ExtentY=-1
+ExtentOrigin=3
+FixedAlignment=1
+TextColor=C8C8CC
+[Layer33]
+Name=Used value
+Text=%RAM usage% / %Total RAM% GB
+PositionX=-13
+PositionY=-16
+ExtentX=-12
+ExtentY=-1
+ExtentOrigin=5
+FixedAlignment=1
+TextColor=FFFFFF
+[Layer34]
+Name=Load
+Text=[[Загрузка|100]]
+PositionX=-1
+PositionY=-17
+ExtentX=-12
+ExtentY=-1
+ExtentOrigin=3
+FixedAlignment=1
+TextColor=C8C8CC
+[Layer35]
+Name=Load value
+Text=%RAM usage percent% %
+PositionX=-13
+PositionY=-17
+ExtentX=-12
+ExtentY=-1
+ExtentOrigin=5
+FixedAlignment=1
+TextColor=FFFFFF,,85,FFD60A,85,95,FF453A,95,(RAM usage percent,0)
+[Layer36]
+Name=sep18
+Text=
+PositionX=-1
+PositionY=-18
+ExtentX=-24
+ExtentY=4
+ExtentOrigin=0
+FixedAlignment=1
+BgndColor=FF3A3A40
+[Layer37]
+Name=hdr18
+Text=[[Время|110]] [[кадра|110]]
+PositionX=-1
+PositionY=-18
+ExtentX=-24
+ExtentY=-1
+ExtentOrigin=3
+FixedAlignment=1
+Size=110
+TextColor=FF8A1E
+[Layer38]
+Name=FT values
+Text=[[ср.|80]] %FrametimeAvg%  [[макс.|80]] %FrametimeMax% ms
+PositionX=-1
+PositionY=-18
+ExtentX=-24
+ExtentY=-1
+ExtentOrigin=5
+FixedAlignment=1
+Size=80
+TextColor=FFFFFF
+VisibilitySource=IsPresentMonDataAvailable
+[Layer39]
+Name=Graph bg
+Text=
+PositionX=-1
+PositionY=-19
+ExtentX=-24
+ExtentY=-4
+ExtentOrigin=0
+FixedAlignment=1
+BgndColor=FF0E0E12
+[Layer40]
+Name=Graph line
+Text=<G=msBetweenDisplayChange,0,0,1,0,50,0>
+PositionX=-1
+PositionY=-19
+ExtentX=-24
+ExtentY=-4
+ExtentOrigin=0
+FixedAlignment=1
+TextColor=FFFF8A1E
+[Layer41]
+Name=FPS label
+Text=FPS
+PositionX=-1
+PositionY=-23
+ExtentX=-10
+ExtentY=-2
+ExtentOrigin=3
+FixedAlignment=1
+Size=160
+TextColor=FFFFFF
+[Layer42]
+Name=FPS fg
+Text=<FR> (%RealFPS%)
+PositionX=-11
+PositionY=-23
+ExtentX=-14
+ExtentY=-2
+ExtentOrigin=5
+FixedAlignment=1
+Size=150
+TextColor=FF8A1E
+VisibilitySource=FGActive
+[Layer43]
+Name=FPS
+Text=<FR>
+PositionX=-11
+PositionY=-23
+ExtentX=-14
+ExtentY=-2
+ExtentOrigin=5
+FixedAlignment=1
+Size=150
+TextColor=FF8A1E
+VisibilitySource=NotFG
+[Layer44]
+Name=Lows label
+Text=1% Low
+PositionX=-1
+PositionY=-25
+ExtentX=-12
+ExtentY=-1
+ExtentOrigin=3
+FixedAlignment=1
+TextColor=C8C8CC
+VisibilitySource=IsPresentMonDataAvailable
+[Layer45]
+Name=Lows value
+Text=%FrameratePresented1Dot0PLow% FPS
+PositionX=-13
+PositionY=-25
+ExtentX=-12
+ExtentY=-1
+ExtentOrigin=5
+FixedAlignment=1
+TextColor=FFFFFF
+VisibilitySource=IsPresentMonDataAvailable
+[Layer46]
+Name=API
+Text=<API>   <RES>
+PositionX=-1
+PositionY=-26
+ExtentX=-24
+ExtentY=-1
+ExtentOrigin=3
+FixedAlignment=1
+Size=80
+TextColor=C8C8CC
+[Layer47]
+Name=Cursor position placeholder
+Text=" "
+PositionX=0
+PositionY=-28
+ExtentX=0
+ExtentY=0
+ExtentOrigin=0
